@@ -3,7 +3,8 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.api.routes import router as converter_router
+from app.api.convertor.route import router as converter_router
+from app.api.metals.route import router as metals
 
 
 app = FastAPI(
@@ -14,6 +15,15 @@ app = FastAPI(
 
 
 app.include_router(converter_router)
+app.include_router(metals)
+
+print("METALS ROUTER:")
+for route in metals.routes:
+    print(
+        type(route),
+        getattr(route, "path", None),
+        getattr(route, "methods", None)
+    )
 
 
 @app.get("/health")
