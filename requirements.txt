@@ -22,3 +22,7 @@ typing_extensions==4.16.0
 tzdata==2026.4
 uvicorn==0.53.0
 httpx==0.24.1
+firebase-admin
+resend
+cloudinary
+python-multipart

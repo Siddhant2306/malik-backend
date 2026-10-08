@@ -3,3 +3,4 @@ malik
 .vscode/
 __pycache__/
 *.pyc
+firebase-service-account.json
