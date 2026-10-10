@@ -15,10 +15,14 @@ def get_current_admin(
         firebase_user=firebase_user,
     )
 
-    if user.role != "admin":
+    if (
+        user.role != "admin"
+        or user.status != "approved"
+        or not user.is_active
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required",
+            detail="Approved admin access required",
         )
 
     return user

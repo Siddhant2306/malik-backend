@@ -9,6 +9,7 @@ from app.api.brands.route import router as brands_router
 from app.api.auth.route import router as auth_router
 from app.api.admin.route import router as admin_users_router
 from app.api.upload.route import router as uploads_router
+from app.api.convertor.get_route import router as get_converter_router
 
 
 app = FastAPI(
@@ -24,6 +25,7 @@ app.include_router(brands_router)
 app.include_router(auth_router)
 app.include_router(admin_users_router)
 app.include_router(uploads_router)
+app.include_router(get_converter_router)
 
 print("METALS ROUTER:")
 for route in metals.routes:
