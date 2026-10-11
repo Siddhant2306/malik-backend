@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from app.core.permission import get_current_admin
+from app.core.permission import get_current_admin, get_current_approved_user
 from app.db.session import get_db
 from app.models.users import Users
 from app.schemas.converter import ConverterCreate
@@ -21,7 +21,7 @@ router = APIRouter(
 def add_converter(
     data: ConverterCreate,
     db: Session = Depends(get_db),
-    admin: Users = Depends(get_current_admin)
+    user: Users = Depends(get_current_approved_user)
 ):
     converter = create_converter(db, data)
 

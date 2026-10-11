@@ -3,26 +3,37 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_firebase_user
 from app.db.session import get_db
-from app.services.auth_service import get_current_db_user
+from app.models.users import Users
 
 
-def get_current_admin(
+def get_current_approved_user(
     firebase_user: dict = Depends(get_current_firebase_user),
     db: Session = Depends(get_db),
-):
-    user = get_current_db_user(
-        db=db,
-        firebase_user=firebase_user,
+) -> Users:
+    firebase_uid = firebase_user.get("uid")
+
+    if not firebase_uid:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Firebase token",
+        )
+
+    user = (
+        db.query(Users)
+        .filter(Users.firebase_uid == firebase_uid)
+        .first()
     )
 
-    if (
-        user.role != "admin"
-        or user.status != "approved"
-        or not user.is_active
-    ):
+    if user is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Approved admin access required",
+            detail="User is not registered",
+        )
+
+    if user.status != "approved" or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is not approved or active",
         )
 
     return user

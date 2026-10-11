@@ -7,6 +7,8 @@ from app.models.brand import Brand
 from app.models.converter import Converter
 from app.services.brands_service import fetch_external_brands
 from app.services.brand_sync_service import sync_brands
+from app.core.permission import get_current_approved_user
+from app.models.users import Users
 
 
 router = APIRouter(
@@ -17,6 +19,7 @@ router = APIRouter(
 @router.get("")
 def get_brands(
     db: Session = Depends(get_db),
+    user: Users = Depends(get_current_approved_user)
 ):
     rows = (
         db.query(
