@@ -83,7 +83,7 @@ def get_converters(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
-    admin: Users = Depends(get_current_admin)
+    user: Users = Depends(get_current_approved_user)
 ):
     query = (
         db.query(Converter)
