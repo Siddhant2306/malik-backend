@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.brand import Brand
+from app.models.converter import Converter
 from app.services.brands_service import fetch_external_brands
 from app.services.brand_sync_service import sync_brands
 
@@ -16,21 +18,39 @@ router = APIRouter(
 def get_brands(
     db: Session = Depends(get_db),
 ):
-    brands = (
-        db.query(Brand)
-        .filter(Brand.is_active == True)
+    rows = (
+        db.query(
+            Brand.id,
+            Brand.external_id,
+            Brand.name,
+            Brand.logo_url,
+            func.count(Converter.id).label("converter_count"),
+        )
+        .outerjoin(
+            Converter,
+            (Converter.brand_id == Brand.id)
+            & (Converter.is_active.is_(True)),
+        )
+        .filter(Brand.is_active.is_(True))
+        .group_by(
+            Brand.id,
+            Brand.external_id,
+            Brand.name,
+            Brand.logo_url,
+        )
         .order_by(Brand.name.asc())
         .all()
     )
 
     return [
         {
-            "id": brand.id,
-            "external_id": brand.external_id,
-            "name": brand.name,
-            "logo_url": brand.logo_url,
+            "id": row.id,
+            "external_id": row.external_id,
+            "name": row.name,
+            "logo_url": row.logo_url,
+            "converter_count": row.converter_count,
         }
-        for brand in brands
+        for row in rows
     ]
 
 @router.get("/external")
