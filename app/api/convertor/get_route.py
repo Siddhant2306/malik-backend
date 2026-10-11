@@ -9,7 +9,7 @@ from app.models.converter import Converter
 from app.models.converter_marking import ConverterMarking
 from app.models.converter_image import ConverterImage
 
-from app.core.permission import get_current_admin
+from app.core.permission import get_current_admin, get_current_approved_user
 from app.models.users import Users
 
 router = APIRouter(
@@ -137,7 +137,7 @@ def get_converters(
 def get_converter_detail(
     converter_id: int,
     db: Session = Depends(get_db),
-    admin: Users = Depends(get_current_admin),
+    user: Users = Depends(get_current_approved_user)
 ):
     converter = (
         db.query(Converter)
