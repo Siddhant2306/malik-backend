@@ -23,10 +23,10 @@ class Converter(Base):
         index=True
     )
 
-    converter_code: Mapped[str | None] = mapped_column(
+    converter_code: Mapped[str] = mapped_column(
         String(50),
         unique=True,
-        nullable=True,
+        nullable=False,
         index=True
     )
 

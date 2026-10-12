@@ -1,14 +1,15 @@
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ConverterCreate(BaseModel):
-    brand_id: int
+    brand_id: int = Field(gt=0)
     code_reference: str = Field(min_length=1, max_length=150)
 
     model: str | None = None
+    country: str = Field(default="India", min_length=1, max_length=100)
 
     converter_type: str | None = None
     category: str | None = None
@@ -20,15 +21,42 @@ class ConverterCreate(BaseModel):
     pd_ppm: Decimal | None = None
     rh_ppm: Decimal | None = None
 
-    markings: list[str] = []
+    markings: list[str] = Field(default_factory=list)
 
-    images: list[str] = []
+    images: list[str] = Field(default_factory=list)
 
     remarks: str | None = None
     notes: str | None = None
 
+
+class ConverterUpdate(BaseModel):
+    brand_id: int | None = Field(default=None, gt=0)
+    code_reference: str | None = Field(default=None, min_length=1, max_length=150)
+    model: str | None = None
+    country: str = Field(default="India", min_length=1, max_length=100)
+    converter_type: str | None = None
+    category: str | None = None
+    local_lingo: str | None = None
+    monolith_weight_g: Decimal | None = None
+    pt_ppm: Decimal | None = None
+    pd_ppm: Decimal | None = None
+    rh_ppm: Decimal | None = None
+    markings: list[str] = Field(default_factory=list)
+    images: list[str] = Field(default_factory=list)
+    remarks: str | None = None
+    notes: str | None = None
+
+    @field_validator("brand_id", "code_reference", mode="before")
+    @classmethod
+    def reject_null_for_required_fields(cls, value):
+        if value is None:
+            raise ValueError("This field cannot be null")
+        return value
+
+
 class ConverterResponse(BaseModel):
     id: int
+    converter_code: str
     brand_id: int
     code_reference: str
     model: str | None
