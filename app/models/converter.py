@@ -23,6 +23,13 @@ class Converter(Base):
         index=True
     )
 
+    converter_code: Mapped[str | None] = mapped_column(
+        String(50),
+        unique=True,
+        nullable=True,
+        index=True
+    )
+
     brand_id: Mapped[int] = mapped_column(
         ForeignKey("brands.id"),
         nullable=False,

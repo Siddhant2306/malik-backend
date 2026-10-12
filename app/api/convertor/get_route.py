@@ -44,6 +44,7 @@ def converter_to_dict(
 
     result = {
         "id": converter.id,
+        "converter_code": converter.converter_code,
         "brand_id": converter.brand_id,
         "brand_name": brand.name if brand else None,
         "code_reference": converter.code_reference,
