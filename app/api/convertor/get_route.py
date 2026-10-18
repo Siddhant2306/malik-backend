@@ -1,15 +1,13 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.db.session import get_db
 from app.models.brand import Brand
 from app.models.converter import Converter
-from app.models.converter_marking import ConverterMarking
-from app.models.converter_image import ConverterImage
 
-from app.core.permission import get_current_admin, get_current_approved_user
+from app.core.permission import get_current_approved_user
 from app.models.users import Users
 
 router = APIRouter(
@@ -19,47 +17,30 @@ router = APIRouter(
 
 
 def converter_to_dict(
-    db: Session,
     converter: Converter,
     include_details: bool = False,
 ) -> dict:
-    brand = (
-        db.query(Brand)
-        .filter(Brand.id == converter.brand_id)
-        .first()
-    )
-
-    images = (
-        db.query(ConverterImage)
-        .filter(ConverterImage.converter_id == converter.id)
-        .order_by(ConverterImage.display_order.asc())
-        .all()
-    )
-
-    markings = (
-        db.query(ConverterMarking)
-        .filter(ConverterMarking.converter_id == converter.id)
-        .all()
-    )
-
     result = {
         "id": converter.id,
         "converter_code": converter.converter_code,
         "brand_id": converter.brand_id,
-        "brand_name": brand.name if brand else None,
+        "brand_name": converter.brand.name if converter.brand else None,
         "code_reference": converter.code_reference,
         "model": converter.model,
         "monolith_weight_g": converter.monolith_weight_g,
         "converter_type": converter.converter_type,
         "category": converter.category,
-        "markings": [m.marking for m in markings],
+        "markings": [marking.marking for marking in converter.markings],
         "images": [
             {
                 "id": image.id,
                 "image_url": image.image_url,
                 "display_order": image.display_order,
             }
-            for image in images
+            for image in sorted(
+                converter.images,
+                key=lambda converter_image: converter_image.display_order,
+            )
         ],
     }
 
@@ -79,23 +60,42 @@ def converter_to_dict(
 
 @router.get("")
 def get_converters(
-    search: str | None = Query(default=None, min_length=1),
+    search: str | None = Query(default=None, max_length=100),
     brand_id: int | None = Query(default=None, gt=0),
-    page: int = Query(default=1, ge=1),
+    cursor: int | None = Query(default=None, gt=0),
     page_size: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
     user: Users = Depends(get_current_approved_user)
 ):
+    if search is not None:
+        search = search.strip()
+        if search and len(search) < 3:
+            raise HTTPException(
+                status_code=422,
+                detail="Search term must contain at least 3 non-whitespace characters.",
+            )
+        if not search:
+            search = None
+
     query = (
         db.query(Converter)
         .filter(Converter.is_active.is_(True))
     )
 
+    if cursor is not None:
+        query = query.filter(Converter.id < cursor)
+
     if brand_id is not None:
         query = query.filter(Converter.brand_id == brand_id)
 
     if search:
-        term = f"%{search.strip()}%"
+        escaped_search = (
+            search
+            .replace("\\", "\\\\")
+            .replace("%", "\\%")
+            .replace("_", "\\_")
+        )
+        term = f"%{escaped_search}%"
         query = (
             query.join(
                 Brand,
@@ -103,34 +103,38 @@ def get_converters(
             )
             .filter(
                 or_(
-                    Converter.code_reference.ilike(term),
-                    Converter.model.ilike(term),
-                    Brand.name.ilike(term),
-                    Converter.local_lingo.ilike(term),
-                    Converter.remarks.ilike(term),
+                    Converter.code_reference.ilike(term, escape="\\"),
+                    Converter.model.ilike(term, escape="\\"),
+                    Brand.name.ilike(term, escape="\\"),
+                    Converter.local_lingo.ilike(term, escape="\\"),
+                    Converter.remarks.ilike(term, escape="\\"),
                 )
             )
         )
 
-    total = query.count()
-
     converters = (
         query
+        .options(
+            selectinload(Converter.brand),
+            selectinload(Converter.images),
+            selectinload(Converter.markings),
+        )
         .order_by(Converter.id.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
+        .limit(page_size + 1)
         .all()
     )
 
+    has_more = len(converters) > page_size
+    converters = converters[:page_size]
+
     return {
         "items": [
-            converter_to_dict(db, converter)
+            converter_to_dict(converter)
             for converter in converters
         ],
-        "total": total,
-        "page": page,
+        "next_cursor": converters[-1].id if has_more else None,
+        "has_more": has_more,
         "page_size": page_size,
-        "total_pages": (total + page_size - 1) // page_size,
     }
 
 
@@ -156,7 +160,6 @@ def get_converter_detail(
         )
 
     return converter_to_dict(
-        db,
         converter,
         include_details=True,
     )
