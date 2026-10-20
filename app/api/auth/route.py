@@ -2,8 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_firebase_user
+from app.core.rate_limit import rate_limiter
 from app.db.session import get_db
-from app.services.user_service import get_user_by_firebase_uid, create_user_from_firebase
+from app.services.user_service import (
+    UserAlreadyRegisteredError,
+    create_user_from_firebase,
+    get_user_by_firebase_uid,
+)
 
 router = APIRouter(
     prefix="/api/v1/auth",
@@ -45,6 +50,11 @@ def register_user(
     db: Session = Depends(get_db),
 ):
     firebase_uid = firebase_user["uid"]
+    rate_limiter.check(
+        key=f"registration:{firebase_uid}",
+        limit=3,
+        window_seconds=3600,
+    )
     email = firebase_user.get("email")
     name = firebase_user.get("name")
 
@@ -65,12 +75,18 @@ def register_user(
             detail="User is already registered.",
         )
 
-    user = create_user_from_firebase(
-        db=db,
-        firebase_uid=firebase_uid,
-        email=email,
-        name=name,
-    )
+    try:
+        user = create_user_from_firebase(
+            db=db,
+            firebase_uid=firebase_uid,
+            email=email,
+            name=name,
+        )
+    except UserAlreadyRegisteredError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="User is already registered.",
+        ) from error
 
     return {
         "message": "Registration successful. Waiting for admin approval.",

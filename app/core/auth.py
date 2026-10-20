@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from firebase_admin import auth
@@ -5,6 +7,7 @@ from firebase_admin import auth
 from app.core.firebase import initialize_firebase
 
 security = HTTPBearer()
+logger = logging.getLogger(__name__)
 
 initialize_firebase()
 
@@ -19,10 +22,8 @@ def get_current_firebase_user(
 
         return decoded_token
 
-    except Exception as e:
-        print("Firebase token verification failed:")
-        print(type(e).__name__)
-        print(str(e))
+    except Exception:
+        logger.warning("Firebase token verification failed.")
 
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

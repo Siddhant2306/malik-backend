@@ -5,9 +5,10 @@ from app.core.permission import get_current_admin
 from app.db.session import get_db
 from app.models.converter import Converter
 from app.models.users import Users
-from app.schemas.converter import ConverterCreate, ConverterUpdate
+from app.schemas.converter import ConverterBulkCreate, ConverterCreate, ConverterUpdate
 from app.services.converter_service import (
     create_converter,
+    create_converters_bulk,
     delete_converter,
     update_converter,
 )
@@ -40,6 +41,30 @@ def add_converter(
         "message": "Converter created successfully",
         "converter_id": converter.id,
         "converter_code": converter.converter_code,
+    }
+
+
+@router.post(
+    "/bulk",
+    status_code=status.HTTP_201_CREATED,
+)
+def add_converters_bulk(
+    data: ConverterBulkCreate,
+    db: Session = Depends(get_db),
+    admin: Users = Depends(get_current_admin),
+):
+    try:
+        converters = create_converters_bulk(db, data.converters)
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(error),
+        ) from error
+
+    return {
+        "message": "Converters imported successfully",
+        "converter_ids": [converter.id for converter in converters],
+        "count": len(converters),
     }
 
 

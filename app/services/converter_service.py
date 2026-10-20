@@ -14,6 +14,37 @@ def create_converter(
     db: Session,
     data: ConverterCreate
 ) -> Converter:
+    converter = _create_converter(db, data)
+    db.commit()
+    db.refresh(converter)
+    return converter
+
+
+def create_converters_bulk(
+    db: Session,
+    converters: list[ConverterCreate],
+) -> list[Converter]:
+    created: list[Converter] = []
+    try:
+        for row_number, data in enumerate(converters, start=1):
+            try:
+                created.append(_create_converter(db, data))
+            except ValueError as error:
+                raise ValueError(f"Row {row_number}: {error}") from error
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    for converter in created:
+        db.refresh(converter)
+    return created
+
+
+def _create_converter(
+    db: Session,
+    data: ConverterCreate,
+) -> Converter:
     brand = db.query(Brand).filter(Brand.id == data.brand_id).first()
     if brand is None:
         raise ValueError("Brand not found")
@@ -56,9 +87,6 @@ def create_converter(
         )
 
         db.add(converter_image)
-
-    db.commit()
-    db.refresh(converter)
 
     return converter
 

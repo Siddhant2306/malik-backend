@@ -6,6 +6,7 @@ def upload_converter_image(file):
         file,
         folder="malik/converters",
         resource_type="image",
+        allowed_formats=["jpg", "jpeg", "png", "webp"],
     )
 
     return {

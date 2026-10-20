@@ -1,4 +1,5 @@
 import os
+from html import escape
 import resend
 
 resend.api_key = os.getenv("RESEND_API_KEY")
@@ -18,7 +19,8 @@ def send_new_user_notification(
     if not email_from:
         raise RuntimeError("EMAIL_FROM is not configured")
 
-    name = user_name or "New user"
+    name = escape(user_name or "New user")
+    safe_email = escape(user_email)
 
     params: resend.Emails.SendParams = {
         "from": email_from,
@@ -31,7 +33,7 @@ def send_new_user_notification(
 
         <p>
             <strong>Name:</strong> {name}<br>
-            <strong>Email:</strong> {user_email}<br>
+            <strong>Email:</strong> {safe_email}<br>
             <strong>User ID:</strong> {user_id}
         </p>
 

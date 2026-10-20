@@ -1,7 +1,16 @@
+import logging
+
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.users import Users
 from app.services.email_service import send_new_user_notification
+
+logger = logging.getLogger(__name__)
+
+
+class UserAlreadyRegisteredError(ValueError):
+    """Raised when a concurrent registration wins the unique-key race."""
 
 
 def get_user_by_firebase_uid(
@@ -40,14 +49,22 @@ def create_user_from_firebase(
     )
 
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise UserAlreadyRegisteredError("User is already registered.") from error
     db.refresh(user)
 
-    # Send approval request ONLY during registration
-    send_new_user_notification(
-        user_email=user.email,
-        user_name=user.name,
-        user_id=user.id,
-    )
+    # A mail provider outage must not roll back a successfully-created pending
+    # account. Administrators can still see the request in the approval queue.
+    try:
+        send_new_user_notification(
+            user_email=user.email,
+            user_name=user.name,
+            user_id=user.id,
+        )
+    except Exception:
+        logger.exception("Could not send approval notification for user %s.", user.id)
 
     return user
