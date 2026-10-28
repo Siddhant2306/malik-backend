@@ -15,3 +15,4 @@ resend
 cloudinary
 python-multipart
 httpx==0.28.1
+psycopg2-binary
